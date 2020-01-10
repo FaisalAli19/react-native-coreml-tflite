@@ -44,5 +44,3 @@ const localStyles = StyleSheet.create({
     backgroundColor: 'transparent'
   }
 });
-
-export default CoreMLImageView;

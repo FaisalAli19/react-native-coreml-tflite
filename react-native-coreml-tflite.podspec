@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/FaisalAli19/react-native-coreml-tflite" }
 
   s.source_files = "ios/**/*.{h,m,swift}"
-  # s.static_framework = true
+  s.static_framework = true
   s.requires_arc = true
 
   s.dependency "React"

@@ -64,12 +64,12 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
     ]
     
     required public init(coder aDecoder: NSCoder) {
-    self.interpreter = try! Interpreter(modelPath: "wall_model.tflite");
+    self.interpreter = try! Interpreter(modelPath: model!);
     super.init(coder: aDecoder)!
   }
     
   override init(frame: CGRect) {
-    self.interpreter = try! Interpreter(modelPath: "wall_model.tflite");
+    self.interpreter = try! Interpreter(modelPath: model!);
     super.init(frame: frame)
     self.frame = frame;
   }
@@ -80,7 +80,7 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
       
       guard let modelPath = Bundle.main.path(
         forResource: modelFile,
-        ofType: "tflite"
+        ofType: nil,
       ) else {
         print("Failed to load the model file with name: \(modelFile).")
         return
@@ -123,10 +123,10 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
   func runMachineLearning(pixelBuffer: CVPixelBuffer) {
     let imageWidth = CVPixelBufferGetWidth(pixelBuffer)
     let imageHeight = CVPixelBufferGetHeight(pixelBuffer)
-    let sourcePixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
-    assert(sourcePixelFormat == kCVPixelFormatType_32ARGB ||
-             sourcePixelFormat == kCVPixelFormatType_32BGRA ||
-               sourcePixelFormat == kCVPixelFormatType_32RGBA)
+    // let sourcePixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
+    // assert(sourcePixelFormat == kCVPixelFormatType_32ARGB ||
+    //          sourcePixelFormat == kCVPixelFormatType_32BGRA ||
+    //            sourcePixelFormat == kCVPixelFormatType_32RGBA)
     
     let interval: TimeInterval
     let outputBoundingBox: Tensor
