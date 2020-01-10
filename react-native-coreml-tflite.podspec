@@ -14,13 +14,14 @@ Pod::Spec.new do |s|
   # s.license    = { :type => "MIT", :file => "FILE_LICENSE" }
   s.authors      = {"FaisalAli" => "faisalali1901@gmail.com"}
   s.platforms    = {:ios => "9.0"}
-  s.source       = { :git => "https://github.com/FaisalAli19/react-native-coreml-tflite", :tag => "#{s.version}" }
+  s.source       = { :git => "https://github.com/FaisalAli19/react-native-coreml-tflite" }
 
-  s.source_files = "ios/**/*.{h,m}"
-  s.static_framework = true
+  s.source_files = "ios/**/*.{h,m,swift}"
+  # s.static_framework = true
   s.requires_arc = true
 
   s.dependency "React"
+  s.dependency "TensorFlowLiteSwift"
   # ...
   # s.dependency "..."
 end
