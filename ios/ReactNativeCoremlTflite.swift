@@ -80,7 +80,7 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
       
       guard let modelPath = Bundle.main.path(
         forResource: modelFile,
-        ofType: nil,
+        ofType: nil
       ) else {
         print("Failed to load the model file with name: \(modelFile).")
         return
@@ -106,11 +106,9 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
   
   public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
     // Converts the CMSampleBuffer to a CVPixelBuffer.
-    let pixelBuffer: CVPixelBuffer? = CMSampleBufferGetImageBuffer(sampleBuffer)
+    let pixelBuffer: CVPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer)!
 
-    guard let imagePixelBuffer = pixelBuffer else {
-      return
-    }
+    let imagePixelBuffer = pixelBuffer
 
     // Delegates the pixel buffer to the ViewController.
     runMachineLearning(pixelBuffer: imagePixelBuffer)
@@ -123,10 +121,18 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
   func runMachineLearning(pixelBuffer: CVPixelBuffer) {
     let imageWidth = CVPixelBufferGetWidth(pixelBuffer)
     let imageHeight = CVPixelBufferGetHeight(pixelBuffer)
-    // let sourcePixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
-    // assert(sourcePixelFormat == kCVPixelFormatType_32ARGB ||
-    //          sourcePixelFormat == kCVPixelFormatType_32BGRA ||
-    //            sourcePixelFormat == kCVPixelFormatType_32RGBA)
+     let sourcePixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
+      assert(sourcePixelFormat == kCVPixelFormatType_32ARGB ||
+               sourcePixelFormat == kCVPixelFormatType_32BGRA ||
+                 sourcePixelFormat == kCVPixelFormatType_32RGBA)
+    let imageChannels = 4
+    assert(imageChannels >= inputChannels)
+    
+    // Crops the image to the biggest square in the center and scales it down to model dimensions.
+    // let scaledSize = CGSize(width: inputWidth, height: inputHeight)
+    // let scaledPixelBuffer = pixelBuffer.resized(to: scaledSize) else {
+    //   return
+    // }
     
     let interval: TimeInterval
     let outputBoundingBox: Tensor
@@ -141,7 +147,7 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
       guard let rgbData = rgbDataFromBuffer(
         pixelBuffer,
         byteCount: batchSize * inputWidth * inputHeight * inputChannels,
-        isModelQuantized: inputTensor.dataType == .uInt8
+        isModelQuantized: false
       ) else {
         print("Failed to convert the image buffer to RGB data.")
         return
@@ -167,8 +173,13 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
              width: CGFloat(imageWidth),
              height: CGFloat(imageHeight)
            )
-           
-             self.onClassification!(["classifications": resultArray])
+        var classificationArray = [Dictionary<String, Any>]()
+           // Returns the inference time and inferences
+    resultArray.forEach{classification in
+      classificationArray.append(["confidence": classification.confidence])
+    
+    }
+             self.onClassification!(["Classification": classificationArray])
     } catch let error {
       print("Failed to invoke the interpreter with error: \(error.localizedDescription)")
     }
@@ -255,6 +266,8 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
         let videoDataOutput = AVCaptureVideoDataOutput()
         let queue = DispatchQueue(label: "xyz.jigswaw.ml.queue")
         videoDataOutput.setSampleBufferDelegate(self, queue: queue)
+        videoDataOutput.alwaysDiscardsLateVideoFrames = true
+    videoDataOutput.videoSettings = [ String(kCVPixelBufferPixelFormatTypeKey) : kCMPixelFormat_32BGRA]
         guard (self.captureSession?.canAddOutput(videoDataOutput))! else {
           fatalError()
         }
@@ -280,27 +293,77 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
      ) -> Data? {
        CVPixelBufferLockBaseAddress(buffer, .readOnly)
        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
-       guard let mutableRawPointer = CVPixelBufferGetBaseAddress(buffer) else {
+       guard let sourceData = CVPixelBufferGetBaseAddress(buffer) else {
          return nil
        }
-       assert(CVPixelBufferGetPixelFormatType(buffer) == kCVPixelFormatType_32BGRA)
-       let count = CVPixelBufferGetDataSize(buffer)
-       let bufferData = Data(bytesNoCopy: mutableRawPointer, count: count, deallocator: .none)
-       var rgbBytes = [UInt8](repeating: 0, count: byteCount)
-       var pixelIndex = 0
-       for component in bufferData.enumerated() {
-         let bgraComponent = component.offset % bgraPixel.channels;
-         let isAlphaComponent = bgraComponent == bgraPixel.alphaComponent;
-         guard !isAlphaComponent else {
-           pixelIndex += 1
-           continue
-         }
-         // Swizzle BGR -> RGB.
-         let rgbIndex = pixelIndex * rgbPixelChannels + (bgraPixel.lastBgrComponent - bgraComponent)
-         rgbBytes[rgbIndex] = component.element
-       }
-       if isModelQuantized { return Data(bytes: rgbBytes) }
-       return Data(copyingBufferOf: rgbBytes.map { Float($0) / 255.0 })
+        assert(CVPixelBufferGetPixelFormatType(buffer) == kCVPixelFormatType_32BGRA)
+        let count = CVPixelBufferGetDataSize(buffer)
+        let bufferData = Data(bytesNoCopy: sourceData, count: count, deallocator: .none)
+        var rgbBytes = [UInt8](repeating: 0, count: byteCount)
+        var pixelIndex = 0
+        
+        for component in bufferData.enumerated() {
+          let bgraComponent = component.offset % bgraPixel.channels;
+          let isAlphaComponent = bgraComponent == bgraPixel.alphaComponent;
+          guard !isAlphaComponent else {
+            pixelIndex += 1
+            continue
+          }
+          // Swizzle BGR -> RGB.
+          
+          let rgbIndex = pixelIndex * rgbPixelChannels + (bgraPixel.lastBgrComponent - bgraComponent)
+          if(rgbIndex >= 0 && rgbIndex < byteCount){
+          rgbBytes[rgbIndex] = component.element
+          }
+        }
+        
+        if isModelQuantized { return Data(bytes: rgbBytes) }
+        return Data(copyingBufferOf: rgbBytes.map { Float($0) / 255.0 })
+        
+//        let width = CVPixelBufferGetWidth(buffer)
+//        let height = CVPixelBufferGetHeight(buffer)
+//        let sourceBytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+//        let destinationChannelCount = 4
+//        let destinationBytesPerRow = destinationChannelCount * width
+//
+//        var sourceBuffer = vImage_Buffer(data: sourceData,
+//             height: vImagePixelCount(height),
+//             width: vImagePixelCount(width),
+//             rowBytes: sourceBytesPerRow)
+//
+//        guard let destinationData = malloc(height * destinationBytesPerRow) else {
+//          print("Error: out of memory")
+//          return nil
+//        }
+//
+//        defer {
+//          free(destinationData)
+//        }
+//
+//        var destinationBuffer = vImage_Buffer(data: destinationData,
+//        height: vImagePixelCount(height),
+//        width: vImagePixelCount(width),
+//        rowBytes: destinationBytesPerRow)
+//
+//        if (CVPixelBufferGetPixelFormatType(buffer) == kCVPixelFormatType_32BGRA){
+//          vImageConvert_BGRA8888toRGB888(&sourceBuffer, &destinationBuffer, UInt32(kvImageNoFlags))
+//        } else if (CVPixelBufferGetPixelFormatType(buffer) == kCVPixelFormatType_32ARGB) {
+//          vImageConvert_ARGB8888toRGB888(&sourceBuffer, &destinationBuffer, UInt32(kvImageNoFlags))
+//        }
+//
+//        let byteData = Data(bytes: destinationBuffer.data, count: destinationBuffer.rowBytes * height)
+//        if isModelQuantized {
+//          return byteData
+//        }
+//
+//        // Not quantized, convert to floats
+//        let bytes = Array<UInt8>(unsafeData: byteData)!
+//        var floats = [Float]()
+//        for i in 0..<bytes.count {
+//          floats.append(Float(bytes[i]) / 255.0)
+//        }
+//        return Data(copyingBufferOf: floats)
+//
      }
   
     /// This assigns color for a particular class.

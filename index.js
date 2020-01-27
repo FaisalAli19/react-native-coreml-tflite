@@ -11,8 +11,9 @@ const CoreMLImageNative = requireNativeComponent('CoreMLImage', null);
 
 export default class CoreMLImageView extends Component {
   onClassification(evt) {
-    if (this.props.onClassification) {
-      this.props.onClassification(evt.nativeEvent.classifications);
+    const { onClassification } = this.props;
+    if (onClassification) {
+      onClassification(evt.nativeEvent.Classification);
     }
   }
 
