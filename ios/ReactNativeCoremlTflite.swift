@@ -43,10 +43,10 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
    let inputWidth = 300
    let inputHeight = 300
     let threshold: Float = 0.5
-    var model = Bundle.main.path(forResource: "wall_model",
-    ofType: "tflite")
-    
-    private var interpreter: Interpreter
+//    var model: String;
+//
+    private var interpreter: Interpreter?
+
     private let bgraPixel = (channels: 4, alphaComponent: 3, lastBgrComponent: 2)
     private let rgbPixelChannels = 3
     private let colorStrideValue = 10
@@ -64,12 +64,10 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
     ]
     
     required public init(coder aDecoder: NSCoder) {
-    self.interpreter = try! Interpreter(modelPath: model!);
     super.init(coder: aDecoder)!
   }
     
   override init(frame: CGRect) {
-    self.interpreter = try! Interpreter(modelPath: model!);
     super.init(frame: frame)
     self.frame = frame;
   }
@@ -94,7 +92,7 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
         // Create the `Interpreter`.
         interpreter = try Interpreter(modelPath: modelPath, options: options)
         // Allocate memory for the model's input `Tensor`s.
-        try interpreter.allocateTensors()
+        try interpreter?.allocateTensors()
       } catch let error {
         print("Failed to create the interpreter with error: \(error.localizedDescription)")
       }
@@ -141,7 +139,7 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
     let outputCount: Tensor
     
     do {
-      let inputTensor = try interpreter.input(at: 0)
+        let inputTensor = try interpreter?.input(at: 0)
 
       // Remove the alpha component from the image buffer to get the RGB data.
       guard let rgbData = rgbDataFromBuffer(
@@ -154,17 +152,17 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
       }
 
       // Copy the RGB data to the input `Tensor`.
-      try interpreter.copy(rgbData, toInputAt: 0)
+        try interpreter?.copy(rgbData, toInputAt: 0)
 
       // Run inference by invoking the `Interpreter`.
       let startDate = Date()
-      try interpreter.invoke()
+        try interpreter?.invoke()
       interval = Date().timeIntervalSince(startDate) * 1000
 
-      outputBoundingBox = try interpreter.output(at: 0)
-      outputClasses = try interpreter.output(at: 1)
-      outputScores = try interpreter.output(at: 2)
-      outputCount = try interpreter.output(at: 3)
+      outputBoundingBox = try (interpreter?.output(at: 0))!
+        outputClasses = try (interpreter?.output(at: 1))!
+        outputScores = try (interpreter?.output(at: 2))!
+        outputCount = try (interpreter?.output(at: 3))!
         
         // Formats the results
            let resultArray = formatResults(
