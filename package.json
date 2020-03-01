@@ -1,7 +1,7 @@
 {
   "name": "react-native-coreml-tflite",
   "title": "React Native Coreml Tflite",
-  "version": "1.0.2",
+  "version": "2.0.1",
   "description": "TODO",
   "main": "index.js",
   "scripts": {

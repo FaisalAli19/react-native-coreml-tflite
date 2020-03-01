@@ -18,7 +18,6 @@ export default class CoreMLImageView extends Component {
   }
 
   render() {
-    console.log(CoreMLImageNative);
     return (
       <CoreMLImageNative
         modelFile={this.props.modelFile}
