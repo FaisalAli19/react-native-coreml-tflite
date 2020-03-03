@@ -44,14 +44,15 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
   // MARK: Model parameters
    let batchSize = 1
    let inputChannels = 3
-   let inputWidth = 300
-   let inputHeight = 300
+   private var inputWidth = 300
+   private var inputHeight = 300
     let threshold: Float = 0.5
 //    var model: String;
 //
     private var interpreter: Interpreter?
     // MARK: Private properties
     private var labels: [String] = []
+    private var isQuant: Bool = false
 
     private let bgraPixel = (channels: 4, alphaComponent: 3, lastBgrComponent: 2)
     private let rgbPixelChannels = 3
@@ -78,8 +79,8 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
     self.frame = frame;
   }
     
-    
   @objc(setModelFile:) public func setModelFile(modelFile: String) {
+    
       print("Setting model file to: " + modelFile)
       
       guard let modelPath = Bundle.main.path(
@@ -114,6 +115,17 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
         print("Failed to create the interpreter with error: \(error.localizedDescription)")
       }
     
+    }
+    
+    @objc(setIsquant:) public func setIsquant(isquant: Bool) {
+        print("Is quantisized is: \(isquant)")
+        self.isQuant = isquant;
+    }
+    
+    @objc(setInputDimension:) public func setInputDimension(inputDimension: Int) {
+        print("Input dimension: \(inputDimension)")
+        self.inputWidth = inputDimension
+        self.inputHeight = inputDimension
     }
   
   func capture(_ captureOutput: AVCaptureFileOutput!, didStartRecordingToOutputFileAt fileURL: URL!, fromConnections connections: [Any]!) {
@@ -162,7 +174,7 @@ public class CoreMLImage: UIView, AVCaptureVideoDataOutputSampleBufferDelegate {
       guard let rgbData = rgbDataFromBuffer(
         scaledPixelBuffer,
         byteCount: batchSize * inputWidth * inputHeight * inputChannels,
-        isModelQuantized: false
+        isModelQuantized: isQuant
       ) else {
         print("Failed to convert the image buffer to RGB data.")
         return

@@ -18,9 +18,12 @@ export default class CoreMLImageView extends Component {
   }
 
   render() {
+    const { modelFile, isquant, inputDimension } = this.props;
     return (
       <CoreMLImageNative
-        modelFile={this.props.modelFile}
+        modelFile={modelFile}
+        isquant={isquant}
+        inputDimension={inputDimension}
         onClassification={evt => this.onClassification(evt)}
         style={{
           width: Dimensions.get('window').width,
